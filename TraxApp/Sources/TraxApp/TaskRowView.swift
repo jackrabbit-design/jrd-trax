@@ -14,45 +14,71 @@ struct TaskRowView: View {
     @Query private var runningTimers: [RunningTimer]
     @Environment(\.modelContext) private var modelContext
 
+    @State private var isAddingTime = false
+    @State private var durationFieldState = DurationFieldState()
+
     var body: some View {
-        HStack(spacing: 12) {
-            Button {
-                startTimer()
-            } label: {
-                Image(systemName: "play.circle")
-            }
-            .buttonStyle(.plain)
-            .disabled(isRunning)
-            priorityDot
-            Button {
-                openTaskLink()
-            } label: {
-                HStack(spacing: 4) {
-                    Text(task.name)
-                    Image(systemName: "arrow.up.right.square")
-                        .font(.caption2)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 12) {
+                Button {
+                    startTimer()
+                } label: {
+                    Image(systemName: "play.circle")
                 }
+                .buttonStyle(.plain)
+                .disabled(isRunning)
+
+                priorityDot
+                Button {
+                    openTaskLink()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(task.name)
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.caption2)
+                    }
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.tint)
+                .frame(minWidth: 160, alignment: .leading)
+
+                Text(dueLabel)
+                    .font(.caption)
+                    .foregroundStyle(task.dueDate == nil ? .secondary : .primary)
+                    .frame(width: 70, alignment: .leading)
+
+                scheduledLabel
+                    .frame(width: 120, alignment: .leading)
+
+                Text(DurationFormatting.short(loggedMinutes))
+                    .font(.caption)
+                    .frame(width: 70, alignment: .leading)
+
+                StatusDropdown(task: task, currentStatus: status, options: statusOptions)
+                    .frame(width: 140, alignment: .leading)
+
+                Button {
+                    isAddingTime.toggle()
+                    if !isAddingTime { durationFieldState.reset() }
+                } label: {
+                    Image(systemName: isAddingTime ? "xmark" : "plus")
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.tint)
-            .frame(minWidth: 160, alignment: .leading)
 
-            Text(dueLabel)
-                .font(.caption)
-                .foregroundStyle(task.dueDate == nil ? .secondary : .primary)
-                .frame(width: 70, alignment: .leading)
-
-            scheduledLabel
-                .frame(width: 120, alignment: .leading)
-
-            Text(DurationFormatting.short(loggedMinutes))
-                .font(.caption)
-                .frame(width: 70, alignment: .leading)
-
-            StatusDropdown(task: task, currentStatus: status, options: statusOptions)
-                .frame(width: 140, alignment: .leading)
-
-            Spacer()
+            if isAddingTime {
+                QuickAddTimeField(
+                    state: durationFieldState,
+                    placeholder: "1h30m",
+                    submitLabel: "Log"
+                ) { minutes in
+                    logTime(minutes)
+                    isAddingTime = false
+                }
+                .padding(.leading, 20)
+            }
         }
         .padding(.vertical, 4)
     }
@@ -106,6 +132,12 @@ struct TaskRowView: View {
             modelContext.delete(existing)
         }
         modelContext.insert(RunningTimer(taskId: task.id, startedAt: .now))
+        try? modelContext.save()
+    }
+
+    private func logTime(_ minutes: Int) {
+        let entry = TimeEntry(taskId: task.id, date: date, minutes: minutes)
+        modelContext.insert(entry)
         try? modelContext.save()
     }
 }
