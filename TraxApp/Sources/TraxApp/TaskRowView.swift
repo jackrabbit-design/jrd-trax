@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import SwiftData
 import TraxKit
 
 struct TaskRowView: View {
@@ -10,8 +11,18 @@ struct TaskRowView: View {
     let scheduledMinutes: Int?
     let loggedMinutes: Int
 
+    @Query private var runningTimers: [RunningTimer]
+    @Environment(\.modelContext) private var modelContext
+
     var body: some View {
         HStack(spacing: 12) {
+            Button {
+                startTimer()
+            } label: {
+                Image(systemName: "play.circle")
+            }
+            .buttonStyle(.plain)
+            .disabled(isRunning)
             priorityDot
             Button {
                 openTaskLink()
@@ -84,5 +95,17 @@ struct TaskRowView: View {
     private func openTaskLink() {
         guard let url = URL(string: "https://app.mavenlink.com/workspaces/\(task.projectId)/stories/\(task.storyId)") else { return }
         NSWorkspace.shared.open(url)
+    }
+
+    private var isRunning: Bool {
+        runningTimers.first?.taskId == task.id
+    }
+
+    private func startTimer() {
+        if let existing = runningTimers.first {
+            modelContext.delete(existing)
+        }
+        modelContext.insert(RunningTimer(taskId: task.id, startedAt: .now))
+        try? modelContext.save()
     }
 }

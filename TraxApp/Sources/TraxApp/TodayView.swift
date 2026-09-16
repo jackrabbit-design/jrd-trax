@@ -12,6 +12,7 @@ struct TodayView: View {
         VStack(spacing: 0) {
             toolbar
             Divider()
+            RunningTimerBanner()
             TaskListView(selectedDate: selectedDate)
         }
         .frame(minWidth: 640, minHeight: 480)
