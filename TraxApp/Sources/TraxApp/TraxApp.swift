@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import AppKit
 import TraxKit
 
 @main
@@ -23,6 +24,14 @@ struct TraxApp: App {
     var body: some Scene {
         WindowGroup {
             TodayView()
+                .onAppear {
+                    // Running as a bare executable (no .app bundle) means
+                    // the process doesn't automatically get Dock/window
+                    // focus — without this, the window can open off-screen
+                    // or simply never come forward.
+                    NSApplication.shared.setActivationPolicy(.regular)
+                    NSApplication.shared.activate(ignoringOtherApps: true)
+                }
         }
         .modelContainer(container)
     }
