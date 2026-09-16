@@ -69,9 +69,7 @@ private func parseBareNumber(_ input: String) -> Result<Int, DurationParseError>
 /// converted, rather than trapping.
 private func minutesFromHours(_ hours: Double) -> Int? {
     guard hours.isFinite else { return nil }
-    let minutes = (hours * 60).rounded()
-    guard minutes.isFinite, minutes >= Double(Int.min), minutes <= Double(Int.max) else { return nil }
-    return Int(minutes)
+    return Int(exactly: (hours * 60).rounded())
 }
 
 private func finalize(_ totalMinutes: Int) -> Result<Int, DurationParseError> {
