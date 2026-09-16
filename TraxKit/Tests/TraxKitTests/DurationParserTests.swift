@@ -27,6 +27,10 @@ struct DurationParserTests {
         ("2:75", DurationParseError.minutesOutOfRange),
         ("25h", DurationParseError.exceedsMax),
         ("1441m", DurationParseError.exceedsMax),
+        ("inf", DurationParseError.unparseable),
+        ("nan", DurationParseError.unparseable),
+        ("1e400", DurationParseError.unparseable),
+        ("99999999999999999999999999999999999999h", DurationParseError.unparseable),
     ])
     func rejectedForms(input: String, expectedError: DurationParseError) {
         #expect(parseDuration(input) == .failure(expectedError))

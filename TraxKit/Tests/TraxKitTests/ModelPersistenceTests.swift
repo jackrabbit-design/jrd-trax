@@ -73,6 +73,19 @@ struct ModelPersistenceTests {
         #expect(fetched.first?.minutes == 45)
     }
 
+    @Test("Allocation date is normalized to the start of the local calendar day")
+    func allocationDateIsNormalizedToStartOfDay() throws {
+        let dayStart = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: 0))
+        let morning = dayStart.addingTimeInterval(3600 * 2)
+        let evening = dayStart.addingTimeInterval(3600 * 20)
+
+        let a = Allocation(id: "a1", taskId: "t1", date: morning, scheduledMinutes: 30)
+        let b = Allocation(id: "a2", taskId: "t1", date: evening, scheduledMinutes: 60)
+
+        #expect(a.date == b.date)
+        #expect(a.date == dayStart)
+    }
+
     @Test("Logging time against an unscheduled task creates no Allocation")
     func unscheduledTaskTimeEntryCreatesNoAllocation() throws {
         let context = try makeContext()

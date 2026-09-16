@@ -5,6 +5,8 @@ import SwiftData
 public final class TimeEntry {
     @Attribute(.unique) public var id: String
     public var taskId: String
+    /// Day-granularity: normalized to the start of the calendar day in the
+    /// user's local timezone (`Calendar.current`) by the initializer.
     public var date: Date
     public var minutes: Int
     public var synced: Bool
@@ -20,7 +22,7 @@ public final class TimeEntry {
     ) {
         self.id = id
         self.taskId = taskId
-        self.date = date
+        self.date = Calendar.current.startOfDay(for: date)
         self.minutes = minutes
         self.synced = synced
         self.createdAt = createdAt
