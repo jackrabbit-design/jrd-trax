@@ -23,4 +23,10 @@ struct DueDateFormattingTests {
         let inTenDays = Calendar.current.date(byAdding: .day, value: 10, to: today)!
         #expect(DueDateFormatting.short(inTenDays, relativeTo: today) == "Next wk")
     }
+
+    @Test("past due date formats as 'Overdue'")
+    func formatsOverdue() {
+        let fiveDaysAgo = Calendar.current.date(byAdding: .day, value: -5, to: today)!
+        #expect(DueDateFormatting.short(fiveDaysAgo, relativeTo: today) == "Overdue")
+    }
 }

@@ -19,6 +19,7 @@ enum DueDateFormatting {
         let daysDifference = calendar.dateComponents([.day], from: startOfToday, to: startOfDue).day ?? 0
 
         if daysDifference == 0 { return "Today" }
+        if daysDifference < 0 { return "Overdue" }
         if daysDifference > 6 { return "Next wk" }
         return startOfDue.formatted(.dateTime.weekday(.abbreviated))
     }

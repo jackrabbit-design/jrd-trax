@@ -54,7 +54,8 @@ struct AddTimeRow: View {
             QuickAddTimeField(
                 state: durationFieldState,
                 placeholder: "1h30m",
-                submitLabel: "Add"
+                submitLabel: "Add",
+                isEnabled: selectedTaskId != nil
             ) { minutes in
                 addTime(minutes)
             }
@@ -67,7 +68,6 @@ struct AddTimeRow: View {
         let entry = TimeEntry(taskId: selectedTaskId, date: date, minutes: minutes)
         modelContext.insert(entry)
         try? modelContext.save()
-        durationFieldState.reset()
         self.selectedTaskId = nil
         taskQuery = ""
     }

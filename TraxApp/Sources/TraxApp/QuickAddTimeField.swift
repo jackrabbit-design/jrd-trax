@@ -4,6 +4,7 @@ struct QuickAddTimeField: View {
     @Bindable var state: DurationFieldState
     let placeholder: String
     let submitLabel: String
+    var isEnabled: Bool = true
     let onSubmit: (Int) -> Void
 
     var body: some View {
@@ -21,7 +22,7 @@ struct QuickAddTimeField: View {
                 }
 
                 Button(submitLabel) { submit() }
-                    .disabled(!state.canSubmit)
+                    .disabled(!state.canSubmit || !isEnabled)
             }
             if let errorMessage = state.errorMessage {
                 Text(errorMessage)
