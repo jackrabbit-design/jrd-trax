@@ -14,6 +14,8 @@ struct TodayView: View {
             Divider()
             RunningTimerBanner()
             TaskListView(selectedDate: selectedDate)
+            Divider()
+            AddTimeRow(date: selectedDate)
         }
         .frame(minWidth: 640, minHeight: 480)
     }
