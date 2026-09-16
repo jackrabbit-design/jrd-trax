@@ -12,9 +12,7 @@ struct TodayView: View {
         VStack(spacing: 0) {
             toolbar
             Divider()
-            Text("Task list coming soon")
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            TaskListView(selectedDate: selectedDate)
         }
         .frame(minWidth: 640, minHeight: 480)
     }
