@@ -9,6 +9,7 @@ public enum PersistenceController {
             TraxTask.self,
             Allocation.self,
             TimeEntry.self,
+            RunningTimer.self,
         ])
     }
 

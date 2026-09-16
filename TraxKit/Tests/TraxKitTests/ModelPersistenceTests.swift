@@ -108,4 +108,32 @@ struct ModelPersistenceTests {
         #expect(entries.count == 1)
         #expect(entries.first?.minutes == 30)
     }
+
+    @Test("TaskStatus round-trips")
+    func taskStatusRoundTrip() throws {
+        let context = try makeContext()
+        let status = TaskStatus(id: "s1", projectId: "p1", name: "In Progress")
+        context.insert(status)
+        try context.save()
+
+        let fetched = try context.fetch(FetchDescriptor<TaskStatus>())
+        #expect(fetched.count == 1)
+        #expect(fetched.first?.projectId == "p1")
+        #expect(fetched.first?.name == "In Progress")
+    }
+
+    @Test("RunningTimer round-trips")
+    func runningTimerRoundTrip() throws {
+        let context = try makeContext()
+        let startedAt = Date(timeIntervalSince1970: 1000)
+        let timer = RunningTimer(taskId: "t1", startedAt: startedAt)
+        context.insert(timer)
+        try context.save()
+
+        let fetched = try context.fetch(FetchDescriptor<RunningTimer>())
+        #expect(fetched.count == 1)
+        #expect(fetched.first?.id == "current")
+        #expect(fetched.first?.taskId == "t1")
+        #expect(fetched.first?.startedAt == startedAt)
+    }
 }
