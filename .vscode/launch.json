@@ -1,0 +1,44 @@
+{
+	"configurations": [
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:trax}/.worktrees/today-view-ui",
+			"name": "Debug Trax (.worktrees/today-view-ui)",
+			"target": "Trax",
+			"configuration": "debug",
+			"preLaunchTask": "swift: Build Debug Trax (.worktrees/today-view-ui)"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:trax}/.worktrees/today-view-ui",
+			"name": "Release Trax (.worktrees/today-view-ui)",
+			"target": "Trax",
+			"configuration": "release",
+			"preLaunchTask": "swift: Build Release Trax (.worktrees/today-view-ui)"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:trax}",
+			"name": "Debug Trax",
+			"target": "Trax",
+			"configuration": "debug",
+			"preLaunchTask": "swift: Build Debug Trax"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:trax}",
+			"name": "Release Trax",
+			"target": "Trax",
+			"configuration": "release",
+			"preLaunchTask": "swift: Build Release Trax"
+		}
+	]
+}
