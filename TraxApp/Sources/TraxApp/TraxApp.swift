@@ -18,8 +18,7 @@ struct TraxApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Text("Trax — \(Date.now.formatted(date: .abbreviated, time: .omitted))")
-                .frame(minWidth: 640, minHeight: 480)
+            TodayView()
         }
         .modelContainer(container)
     }
