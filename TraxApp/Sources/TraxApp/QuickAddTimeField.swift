@@ -33,6 +33,7 @@ struct QuickAddTimeField: View {
     }
 
     private func submit() {
+        guard isEnabled else { return }
         if let minutes = state.validate() {
             onSubmit(minutes)
             state.reset()
