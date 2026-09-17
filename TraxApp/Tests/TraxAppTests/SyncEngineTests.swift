@@ -75,6 +75,11 @@ struct SyncEngineTests {
     @Test("applySync pushes unsynced time entries and marks them synced")
     func applySyncPushesTimeEntries() async throws {
         let context = try makeContext()
+        let task = TraxTask(
+            id: "st1", projectId: "w1", name: "Design homepage",
+            priority: .normal, storyId: "st1"
+        )
+        context.insert(task)
         let entry = TimeEntry(taskId: "st1", date: Date(timeIntervalSince1970: 0), minutes: 90)
         context.insert(entry)
         try context.save()
@@ -235,6 +240,11 @@ struct SyncEngineTests {
     func applySyncPersistsSuccessesBeforeRethrowingUnauthorized() async throws {
         let container = try PersistenceController.makeContainer(inMemory: true)
         let context = ModelContext(container)
+        let entryTask = TraxTask(
+            id: "st1", projectId: "w1", name: "Time entry task",
+            priority: .normal, storyId: "st1"
+        )
+        context.insert(entryTask)
         let entry = TimeEntry(taskId: "st1", date: Date(timeIntervalSince1970: 0), minutes: 90)
         context.insert(entry)
         let task = TraxTask(
@@ -302,5 +312,63 @@ struct SyncEngineTests {
         let freshContext = ModelContext(container)
         let statuses = try freshContext.fetch(FetchDescriptor<TaskStatus>())
         #expect(statuses.isEmpty)
+    }
+
+    @Test("applySync upserts a local Project from a pulled workspace")
+    func applySyncUpsertsProjectFromWorkspace() async throws {
+        let context = try makeContext()
+        let transport = RoutingStubTransport()
+        transport.responsesByPath["workspaces"] = #"[{"id":"w1","title":"Acme Redesign"}]"#
+        let engine = makeEngine(context: context, transport: transport)
+        let preparation = try await engine.prepareSync()
+
+        try await engine.applySync(preparation, resolutions: [:])
+
+        let projects = try context.fetch(FetchDescriptor<Project>())
+        #expect(projects.count == 1)
+        #expect(projects.first?.id == "w1")
+        #expect(projects.first?.name == "Acme Redesign")
+    }
+
+    @Test("applySync never pushes a status for a task with no sync baseline")
+    func applySyncNeverPushesUnsyncedBaselineTask() async throws {
+        let context = try makeContext()
+        let task = TraxTask(
+            id: "t1", projectId: "p1", name: "Seeded task",
+            priority: .normal, statusId: "s1", storyId: "st1", syncedStatusId: nil
+        )
+        context.insert(task)
+        try context.save()
+
+        let transport = RoutingStubTransport()
+        let engine = makeEngine(context: context, transport: transport)
+        let preparation = try await engine.prepareSync()
+
+        try await engine.applySync(preparation, resolutions: [:])
+
+        #expect(!transport.requests.contains { $0.url?.lastPathComponent == "story_state_changes" })
+    }
+
+    @Test("applySync adopts a remote-only status change and updates the baseline")
+    func applySyncAdoptsRemoteOnlyStatusChange() async throws {
+        let context = try makeContext()
+        let task = TraxTask(
+            id: "st1", projectId: "w1", name: "Design homepage",
+            priority: .normal, statusId: "s1", storyId: "st1", syncedStatusId: "s1"
+        )
+        context.insert(task)
+        try context.save()
+
+        let transport = RoutingStubTransport()
+        transport.responsesByPath["task_statuses"] = #"[{"id":"s1","name":"To Do"},{"id":"s2","name":"In Progress"}]"#
+        transport.responsesByPath["stories"] = #"[{"id":"st1","workspace_id":"w1","title":"Design homepage","status_id":"s2"}]"#
+        let engine = makeEngine(context: context, transport: transport)
+        let preparation = try await engine.prepareSync()
+        #expect(preparation.conflicts.isEmpty)
+
+        try await engine.applySync(preparation, resolutions: [:])
+
+        #expect(task.statusId == "s2")
+        #expect(task.syncedStatusId == "s2")
     }
 }

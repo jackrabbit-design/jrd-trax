@@ -8,6 +8,7 @@ struct SyncPreparation: Sendable {
     let remoteStatusSets: [StatusSetDTO]
     let remoteAssignments: [AssignmentDTO]
     let remoteStories: [StoryDTO]
+    let remoteWorkspaces: [WorkspaceDTO]
     let remoteAllocations: [DailyScheduledHourDTO]
     let conflicts: [SyncConflict]
     let dateWindow: (from: String, to: String)
@@ -51,6 +52,7 @@ final class SyncEngine {
         let remoteStatusSets = try await apiClient.fetchStatusSets()
         let remoteAssignments = try await apiClient.fetchAssignments()
         let remoteStories = try await apiClient.fetchStories()
+        let remoteWorkspaces = try await apiClient.fetchWorkspaces()
         let (from, to) = dateWindow()
         let remoteAllocations = try await apiClient.fetchDailyScheduledHours(from: from, to: to)
 
@@ -78,6 +80,7 @@ final class SyncEngine {
             remoteStatusSets: remoteStatusSets,
             remoteAssignments: remoteAssignments,
             remoteStories: remoteStories,
+            remoteWorkspaces: remoteWorkspaces,
             remoteAllocations: remoteAllocations,
             conflicts: detectConflicts(inputs),
             dateWindow: (from, to)
@@ -109,11 +112,15 @@ final class SyncEngine {
             FetchDescriptor<TimeEntry>(predicate: #Predicate { $0.synced == false })
         )
         for entry in unsyncedEntries {
+            guard let task = try taskById(entry.taskId) else {
+                failures.append("time entry for unknown task \(entry.taskId)")
+                continue
+            }
             do {
                 let dateString = Self.isoDateFormatter.string(from: entry.date)
                 let hours = Double(entry.minutes) / 60
                 _ = try await apiClient.createTimeEntry(
-                    TimeEntryCreateRequest(storyId: entry.taskId, date: dateString, hours: hours)
+                    TimeEntryCreateRequest(storyId: task.storyId, date: dateString, hours: hours)
                 )
                 entry.synced = true
             } catch let error as KantataAPIError where error == .unauthorized {
@@ -127,6 +134,7 @@ final class SyncEngine {
         let localTasks = try modelContext.fetch(FetchDescriptor<TraxTask>())
         for task in localTasks {
             guard !useKantatasTaskIds.contains(task.id) else { continue }
+            guard task.syncedStatusId != nil else { continue }
             guard task.statusId != task.syncedStatusId, let newStatusId = task.statusId else { continue }
             do {
                 _ = try await apiClient.createStoryStateChange(
@@ -161,6 +169,23 @@ final class SyncEngine {
         }
         for status in existingStatuses where !seenStatusIds.contains(status.id) {
             modelContext.delete(status)
+        }
+
+        let existingProjects = try modelContext.fetch(FetchDescriptor<Project>())
+        var existingProjectsById = Dictionary(existingProjects.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
+        for workspace in preparation.remoteWorkspaces {
+            if let existing = existingProjectsById[workspace.id] {
+                existing.name = workspace.title
+            } else {
+                let newProject = Project(
+                    id: workspace.id,
+                    name: workspace.title,
+                    colorHex: "#6B7280",
+                    workspaceURL: URL(string: "https://app.mavenlink.com/workspaces/\(workspace.id)")!
+                )
+                modelContext.insert(newProject)
+                existingProjectsById[workspace.id] = newProject
+            }
         }
 
         let storiesById = Dictionary(preparation.remoteStories.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
@@ -209,6 +234,13 @@ final class SyncEngine {
         }
         for (id, allocation) in existingAllocationsById where !seenAllocationIds.contains(id) {
             modelContext.delete(allocation)
+        }
+
+        for task in localTasks {
+            guard !useKantatasTaskIds.contains(task.id) else { continue }
+            guard task.statusId == task.syncedStatusId else { continue }
+            guard let remoteStory = storiesById[task.id], let remoteStatusId = remoteStory.statusId, remoteStatusId != task.statusId else { continue }
+            task.statusId = remoteStatusId
         }
 
         let finalTasks = try modelContext.fetch(FetchDescriptor<TraxTask>())
