@@ -117,6 +117,7 @@ final class SyncEngine {
                 )
                 entry.synced = true
             } catch let error as KantataAPIError where error == .unauthorized {
+                try? modelContext.save()
                 throw error
             } catch {
                 failures.append("time entry for \(entry.taskId)")
@@ -132,6 +133,7 @@ final class SyncEngine {
                     StoryStateChangeCreateRequest(storyId: task.storyId, statusId: newStatusId)
                 )
             } catch let error as KantataAPIError where error == .unauthorized {
+                try? modelContext.save()
                 throw error
             } catch {
                 failures.append("status for \(task.name)")

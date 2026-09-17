@@ -8,11 +8,15 @@ import KantataAPI
 final class RoutingStubTransport: HTTPTransport, @unchecked Sendable {
     var responsesByPath: [String: String] = [:]
     var failingPaths: Set<String> = []
+    var unauthorizedPaths: Set<String> = []
     private(set) var requests: [URLRequest] = []
 
     func send(_ request: URLRequest) async throws -> (Data, URLResponse) {
         requests.append(request)
         let path = request.url?.lastPathComponent ?? ""
+        if unauthorizedPaths.contains(path) {
+            return (Data(), HTTPURLResponse(url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil)!)
+        }
         if failingPaths.contains(path) {
             return (Data(), HTTPURLResponse(url: request.url!, statusCode: 500, httpVersion: nil, headerFields: nil)!)
         }
@@ -225,5 +229,78 @@ struct SyncEngineTests {
         }
 
         #expect(task.syncedStatusId == "s1")
+    }
+
+    @Test("applySync persists already-successful pushes before rethrowing unauthorized")
+    func applySyncPersistsSuccessesBeforeRethrowingUnauthorized() async throws {
+        let container = try PersistenceController.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        let entry = TimeEntry(taskId: "st1", date: Date(timeIntervalSince1970: 0), minutes: 90)
+        context.insert(entry)
+        let task = TraxTask(
+            id: "st2", projectId: "w1", name: "Design homepage",
+            priority: .normal, statusId: "s2", storyId: "st2", syncedStatusId: "s1"
+        )
+        context.insert(task)
+        try context.save()
+
+        let transport = RoutingStubTransport()
+        transport.responsesByPath["time_entries"] = #"{"id":"te1","story_id":"st1","date":"1970-01-01","hours":1.5}"#
+        transport.responsesByPath["task_statuses"] = #"[{"id":"s1","name":"To Do"},{"id":"s2","name":"In Progress"}]"#
+        transport.responsesByPath["stories"] = #"[{"id":"st2","workspace_id":"w1","title":"Design homepage","status_id":"s1"}]"#
+        transport.unauthorizedPaths = ["story_state_changes"]
+        let engine = makeEngine(context: context, transport: transport)
+        let preparation = try await engine.prepareSync()
+        #expect(preparation.conflicts.isEmpty)
+
+        await #expect(throws: KantataAPIError.unauthorized) {
+            try await engine.applySync(preparation, resolutions: [:])
+        }
+
+        let freshContext = ModelContext(container)
+        let entries = try freshContext.fetch(FetchDescriptor<TimeEntry>())
+        #expect(entries.first?.synced == true)
+    }
+
+    @Test("applySync updates an existing TaskStatus in place rather than delete+reinsert")
+    func applySyncUpdatesExistingTaskStatusInPlace() async throws {
+        let container = try PersistenceController.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        let status = TaskStatus(id: "s1", projectId: "w1", name: "Old name")
+        context.insert(status)
+        try context.save()
+
+        let transport = RoutingStubTransport()
+        transport.responsesByPath["task_statuses"] = #"[{"id":"s1","name":"New name"}]"#
+        transport.responsesByPath["task_status_sets"] = #"[{"id":"set1","name":"Set","workspace_id":"w1","status_ids":["s1"]}]"#
+        let engine = makeEngine(context: context, transport: transport)
+        let preparation = try await engine.prepareSync()
+
+        try await engine.applySync(preparation, resolutions: [:])
+
+        let freshContext = ModelContext(container)
+        let statuses = try freshContext.fetch(FetchDescriptor<TaskStatus>())
+        #expect(statuses.count == 1)
+        #expect(statuses.first?.name == "New name")
+        #expect(statuses.first?.projectId == "w1")
+    }
+
+    @Test("applySync deletes a local TaskStatus no longer present remotely")
+    func applySyncDeletesTaskStatusMissingRemotely() async throws {
+        let container = try PersistenceController.makeContainer(inMemory: true)
+        let context = ModelContext(container)
+        let status = TaskStatus(id: "s1", projectId: "w1", name: "Stale status")
+        context.insert(status)
+        try context.save()
+
+        let transport = RoutingStubTransport()
+        let engine = makeEngine(context: context, transport: transport)
+        let preparation = try await engine.prepareSync()
+
+        try await engine.applySync(preparation, resolutions: [:])
+
+        let freshContext = ModelContext(container)
+        let statuses = try freshContext.fetch(FetchDescriptor<TaskStatus>())
+        #expect(statuses.isEmpty)
     }
 }
