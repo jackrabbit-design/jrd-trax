@@ -13,7 +13,7 @@
 
 /* Begin PBXFileReference section */
 		0D3098688925AF2DED59BC5B /* TraxXcodeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TraxXcodeApp.swift; sourceTree = "<group>"; };
-		5FECB016BB2F3A8FE3F8CD9E /* release-pipeline */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "release-pipeline"; path = .; sourceTree = SOURCE_ROOT; };
+		5221C7274EBF3E28E7E14BAA /* trax */ = {isa = PBXFileReference; lastKnownFileType = folder; name = trax; path = .; sourceTree = SOURCE_ROOT; };
 		62E70CB89C8F6A63E83854F6 /* Trax.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Trax.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -41,7 +41,7 @@
 		8AD5B74EA5C31132A416609B /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				5FECB016BB2F3A8FE3F8CD9E /* release-pipeline */,
+				5221C7274EBF3E28E7E14BAA /* trax */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
