@@ -5,14 +5,16 @@ let package = Package(
     name: "TraxApp",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "Trax", targets: ["TraxApp"]),
+        .executable(name: "trax-cli", targets: ["TraxAppExecutable"]),
+        .library(name: "TraxApp", targets: ["TraxApp"]),
     ],
     dependencies: [
         .package(path: "TraxKit"),
         .package(path: "KantataAPI"),
     ],
     targets: [
-        .executableTarget(name: "TraxApp", dependencies: ["TraxKit", "KantataAPI"], path: "TraxApp/Sources/TraxApp"),
+        .target(name: "TraxApp", dependencies: ["TraxKit", "KantataAPI"], path: "TraxApp/Sources/TraxApp"),
+        .executableTarget(name: "TraxAppExecutable", dependencies: ["TraxApp"], path: "TraxApp/Sources/TraxAppExecutable"),
         .testTarget(name: "TraxAppTests", dependencies: ["TraxApp"], path: "TraxApp/Tests/TraxAppTests"),
     ]
 )

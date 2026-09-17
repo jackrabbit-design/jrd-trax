@@ -1,0 +1,3 @@
+import TraxApp
+
+TraxAppMain.main()

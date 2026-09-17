@@ -1,0 +1,23 @@
+name: Trax
+options:
+  bundleIdPrefix: com.jackrabbit
+  deploymentTarget:
+    macOS: "14.0"
+packages:
+  TraxAppPackage:
+    path: .
+targets:
+  Trax:
+    type: application
+    platform: macOS
+    sources:
+      - path: XcodeApp/Trax
+    dependencies:
+      - package: TraxAppPackage
+        product: TraxApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jackrabbit.trax
+        PRODUCT_NAME: Trax
+        GENERATE_INFOPLIST_FILE: YES
+        ENABLE_HARDENED_RUNTIME: YES

@@ -4,12 +4,11 @@ import AppKit
 import TraxKit
 import KantataAPI
 
-@main
 @MainActor
-struct TraxApp: App {
+public struct TraxAppMain: App {
     let container: ModelContainer
 
-    init() {
+    public init() {
         do {
             container = try PersistenceController.makeContainer(inMemory: true)
         } catch {
@@ -22,7 +21,7 @@ struct TraxApp: App {
         }
     }
 
-    var body: some Scene {
+    public var body: some Scene {
         WindowGroup {
             AuthGateView(
                 oauthClient: LoopbackOAuthClient(

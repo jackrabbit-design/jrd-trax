@@ -5,7 +5,22 @@ struct TodayView: View {
     @State private var selectedDate: Date = Calendar.current.startOfDay(for: .now)
 
     private var dateLabel: String {
-        selectedDate.formatted(.dateTime.weekday(.wide).month(.wide).day())
+        selectedDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+    }
+    private var relativeDate: String {
+        let now = Calendar.current.startOfDay(for: .now)
+        let components = Calendar.current.dateComponents([.day], from: now, to: selectedDate)
+        switch components.day {
+        case 0:
+            return "Today"
+        case 1:
+            return "Tomorrow"
+        case -1:
+            return "Yesterday"
+        default:
+            guard let day = components.day else { return "" }
+            return day > 0 ? "+\(day) days" : "\(day) days"
+        }
     }
 
     var body: some View {
@@ -23,15 +38,20 @@ struct TodayView: View {
     private var toolbar: some View {
         VStack(alignment: .trailing, spacing: 2) {
             HStack {
-                Spacer()
                 HStack(spacing: 16) {
                     Button {
                         selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
                     } label: {
                         Image(systemName: "chevron.left")
                     }
-                    Text(dateLabel)
-                        .font(.headline)
+                    VStack(spacing:2) {
+                        Text(dateLabel)
+                            .font(.headline)
+                            .frame(minWidth:85)
+                        Text(relativeDate)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     Button {
                         selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
                     } label: {
@@ -39,6 +59,9 @@ struct TodayView: View {
                     }
                 }
                 Spacer()
+                Text("Last synced —")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Button {
                     // Sync is wired up in a future sub-project.
                 } label: {
@@ -48,12 +71,7 @@ struct TodayView: View {
             }
             .padding(.horizontal)
             .padding(.top, 12)
-
-            Text("Last synced —")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal)
-                .padding(.bottom, 8)
+            .padding(.bottom, 12)
         }
     }
 }

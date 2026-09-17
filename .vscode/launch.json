@@ -39,6 +39,26 @@
 			"target": "Trax",
 			"configuration": "release",
 			"preLaunchTask": "swift: Build Release Trax"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:trax}",
+			"name": "Debug trax-cli",
+			"target": "trax-cli",
+			"configuration": "debug",
+			"preLaunchTask": "swift: Build Debug trax-cli"
+		},
+		{
+			"type": "swift",
+			"request": "launch",
+			"args": [],
+			"cwd": "${workspaceFolder:trax}",
+			"name": "Release trax-cli",
+			"target": "trax-cli",
+			"configuration": "release",
+			"preLaunchTask": "swift: Build Release trax-cli"
 		}
 	]
 }
