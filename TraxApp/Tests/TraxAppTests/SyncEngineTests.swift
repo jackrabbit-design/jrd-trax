@@ -202,4 +202,28 @@ struct SyncEngineTests {
         }
         #expect(entry.synced == false)
     }
+
+    @Test("applySync does not advance the baseline for a status push that failed")
+    func applySyncDoesNotAdvanceBaselineOnFailedStatusPush() async throws {
+        let context = try makeContext()
+        let task = TraxTask(
+            id: "st1", projectId: "w1", name: "Design homepage",
+            priority: .normal, statusId: "s2", storyId: "st1", syncedStatusId: "s1"
+        )
+        context.insert(task)
+        try context.save()
+
+        let transport = RoutingStubTransport()
+        transport.responsesByPath["task_statuses"] = #"[{"id":"s1","name":"To Do"},{"id":"s2","name":"In Progress"}]"#
+        transport.responsesByPath["stories"] = #"[{"id":"st1","workspace_id":"w1","title":"Design homepage","status_id":"s1"}]"#
+        transport.failingPaths = ["story_state_changes"]
+        let engine = makeEngine(context: context, transport: transport)
+        let preparation = try await engine.prepareSync()
+
+        await #expect(throws: SyncError.self) {
+            try await engine.applySync(preparation, resolutions: [:])
+        }
+
+        #expect(task.syncedStatusId == "s1")
+    }
 }

@@ -10,6 +10,7 @@ struct SyncPreparation: Sendable {
     let remoteStories: [StoryDTO]
     let remoteAllocations: [DailyScheduledHourDTO]
     let conflicts: [SyncConflict]
+    let dateWindow: (from: String, to: String)
 }
 
 enum SyncError: Error, Equatable {
@@ -29,6 +30,7 @@ final class SyncEngine {
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.timeZone = TimeZone.current
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
 
@@ -55,8 +57,8 @@ final class SyncEngine {
         let localTasks = try modelContext.fetch(FetchDescriptor<TraxTask>())
         let localStatuses = try modelContext.fetch(FetchDescriptor<TaskStatus>())
         let localStatusNamesById = Dictionary(uniqueKeysWithValues: localStatuses.map { ($0.id, $0.name) })
-        let remoteStatusNamesById = Dictionary(uniqueKeysWithValues: remoteStatuses.map { ($0.id, $0.name) })
-        let remoteStoriesById = Dictionary(uniqueKeysWithValues: remoteStories.map { ($0.id, $0) })
+        let remoteStatusNamesById = Dictionary(remoteStatuses.map { ($0.id, $0.name) }, uniquingKeysWith: { _, new in new })
+        let remoteStoriesById = Dictionary(remoteStories.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
 
         let inputs: [ConflictCheckInput] = localTasks.compactMap { task in
             guard let remoteStory = remoteStoriesById[task.id] else { return nil }
@@ -77,16 +79,21 @@ final class SyncEngine {
             remoteAssignments: remoteAssignments,
             remoteStories: remoteStories,
             remoteAllocations: remoteAllocations,
-            conflicts: detectConflicts(inputs)
+            conflicts: detectConflicts(inputs),
+            dateWindow: (from, to)
         )
     }
 
     func applySync(_ preparation: SyncPreparation, resolutions: [String: ConflictResolution]) async throws {
-        var useKantatasTaskIds: Set<String> = []
         for conflict in preparation.conflicts {
-            guard let resolution = resolutions[conflict.taskId] else {
+            guard resolutions[conflict.taskId] != nil else {
                 throw SyncError.missingResolution(conflict.taskId)
             }
+        }
+
+        var useKantatasTaskIds: Set<String> = []
+        for conflict in preparation.conflicts {
+            guard let resolution = resolutions[conflict.taskId] else { continue }
             if resolution == .useKantatas {
                 useKantatasTaskIds.insert(conflict.taskId)
                 if let task = try taskById(conflict.taskId) {
@@ -96,6 +103,7 @@ final class SyncEngine {
         }
 
         var failures: [String] = []
+        var failedStatusPushTaskIds: Set<String> = []
 
         let unsyncedEntries = try modelContext.fetch(
             FetchDescriptor<TimeEntry>(predicate: #Predicate { $0.synced == false })
@@ -108,6 +116,8 @@ final class SyncEngine {
                     TimeEntryCreateRequest(storyId: entry.taskId, date: dateString, hours: hours)
                 )
                 entry.synced = true
+            } catch let error as KantataAPIError where error == .unauthorized {
+                throw error
             } catch {
                 failures.append("time entry for \(entry.taskId)")
             }
@@ -121,24 +131,37 @@ final class SyncEngine {
                 _ = try await apiClient.createStoryStateChange(
                     StoryStateChangeCreateRequest(storyId: task.storyId, statusId: newStatusId)
                 )
+            } catch let error as KantataAPIError where error == .unauthorized {
+                throw error
             } catch {
                 failures.append("status for \(task.name)")
+                failedStatusPushTaskIds.insert(task.id)
             }
         }
 
         let existingStatuses = try modelContext.fetch(FetchDescriptor<TaskStatus>())
-        for status in existingStatuses {
-            modelContext.delete(status)
-        }
-        let statusNamesById = Dictionary(uniqueKeysWithValues: preparation.remoteStatuses.map { ($0.id, $0.name) })
+        var existingStatusesById = Dictionary(existingStatuses.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
+        var seenStatusIds: Set<String> = []
+        let statusNamesById = Dictionary(preparation.remoteStatuses.map { ($0.id, $0.name) }, uniquingKeysWith: { _, new in new })
         for statusSet in preparation.remoteStatusSets {
             for statusId in statusSet.statusIds {
                 guard let name = statusNamesById[statusId] else { continue }
-                modelContext.insert(TaskStatus(id: statusId, projectId: statusSet.workspaceId, name: name))
+                seenStatusIds.insert(statusId)
+                if let existing = existingStatusesById[statusId] {
+                    existing.name = name
+                    existing.projectId = statusSet.workspaceId
+                } else {
+                    let newStatus = TaskStatus(id: statusId, projectId: statusSet.workspaceId, name: name)
+                    modelContext.insert(newStatus)
+                    existingStatusesById[statusId] = newStatus
+                }
             }
         }
+        for status in existingStatuses where !seenStatusIds.contains(status.id) {
+            modelContext.delete(status)
+        }
 
-        let storiesById = Dictionary(uniqueKeysWithValues: preparation.remoteStories.map { ($0.id, $0) })
+        let storiesById = Dictionary(preparation.remoteStories.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
         let refreshedLocalTasks = try modelContext.fetch(FetchDescriptor<TraxTask>())
         let localTasksById = Dictionary(uniqueKeysWithValues: refreshedLocalTasks.map { ($0.id, $0) })
         for assignment in preparation.remoteAssignments {
@@ -161,25 +184,33 @@ final class SyncEngine {
             }
         }
 
-        let (from, to) = dateWindow()
+        let (from, to) = preparation.dateWindow
+        var existingAllocationsById: [String: Allocation] = [:]
+        var seenAllocationIds: Set<String> = []
         if let fromDate = Self.isoDateFormatter.date(from: from), let toDate = Self.isoDateFormatter.date(from: to) {
             let existingAllocations = try modelContext.fetch(
                 FetchDescriptor<Allocation>(predicate: #Predicate { $0.date >= fromDate && $0.date <= toDate })
             )
-            for allocation in existingAllocations {
-                modelContext.delete(allocation)
-            }
+            existingAllocationsById = Dictionary(existingAllocations.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
         }
         for dto in preparation.remoteAllocations {
             guard let date = Self.isoDateFormatter.date(from: dto.date) else { continue }
-            modelContext.insert(Allocation(
-                id: dto.id, taskId: dto.storyId, date: date,
-                scheduledMinutes: Int((dto.hours * 60).rounded())
-            ))
+            seenAllocationIds.insert(dto.id)
+            let minutes = Int((dto.hours * 60).rounded())
+            if let existing = existingAllocationsById[dto.id] {
+                existing.taskId = dto.storyId
+                existing.date = date
+                existing.scheduledMinutes = minutes
+            } else {
+                modelContext.insert(Allocation(id: dto.id, taskId: dto.storyId, date: date, scheduledMinutes: minutes))
+            }
+        }
+        for (id, allocation) in existingAllocationsById where !seenAllocationIds.contains(id) {
+            modelContext.delete(allocation)
         }
 
         let finalTasks = try modelContext.fetch(FetchDescriptor<TraxTask>())
-        for task in finalTasks {
+        for task in finalTasks where !failedStatusPushTaskIds.contains(task.id) {
             task.syncedStatusId = task.statusId
         }
 
