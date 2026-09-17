@@ -9,9 +9,10 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "TraxKit"),
+        .package(path: "KantataAPI"),
     ],
     targets: [
-        .executableTarget(name: "TraxApp", dependencies: ["TraxKit"], path: "TraxApp/Sources/TraxApp"),
+        .executableTarget(name: "TraxApp", dependencies: ["TraxKit", "KantataAPI"], path: "TraxApp/Sources/TraxApp"),
         .testTarget(name: "TraxAppTests", dependencies: ["TraxApp"], path: "TraxApp/Tests/TraxAppTests"),
     ]
 )
