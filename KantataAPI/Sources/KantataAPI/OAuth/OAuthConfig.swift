@@ -2,6 +2,12 @@ import Foundation
 
 public struct OAuthConfig: Sendable {
     public let clientID: String
+    /// Kantata's OAuth token endpoint requires a confidential-client secret
+    /// on the code exchange (confirmed against developer.kantata.com — it
+    /// does not support a PKCE-only public client, contrary to this app's
+    /// original assumption). PKCE is still included on top of it as
+    /// defense-in-depth, but the secret is what Kantata actually requires.
+    public let clientSecret: String
     public let redirectPort: UInt16
     public let authorizeURL: URL
     public let tokenURL: URL
@@ -9,12 +15,14 @@ public struct OAuthConfig: Sendable {
 
     public init(
         clientID: String,
+        clientSecret: String,
         redirectPort: UInt16 = 51818,
         authorizeURL: URL = URL(string: "https://app.mavenlink.com/oauth/authorize")!,
         tokenURL: URL = URL(string: "https://app.mavenlink.com/oauth/token")!,
         scope: String? = nil
     ) {
         self.clientID = clientID
+        self.clientSecret = clientSecret
         self.redirectPort = redirectPort
         self.authorizeURL = authorizeURL
         self.tokenURL = tokenURL

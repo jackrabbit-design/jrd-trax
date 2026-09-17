@@ -6,13 +6,13 @@ import Foundation
 struct OAuthConfigTests {
     @Test("redirect URI uses the configured fixed loopback port")
     func redirectURI() {
-        let config = OAuthConfig(clientID: "abc", redirectPort: 51818)
+        let config = OAuthConfig(clientID: "abc", clientSecret: "secret", redirectPort: 51818)
         #expect(config.redirectURI.absoluteString == "http://127.0.0.1:51818/callback")
     }
 
     @Test("authorization URL includes all required query parameters")
     func authorizationURLQueryItems() {
-        let config = OAuthConfig(clientID: "my-client-id", redirectPort: 51818, scope: "read write")
+        let config = OAuthConfig(clientID: "my-client-id", clientSecret: "secret", redirectPort: 51818, scope: "read write")
         let pkce = PKCE()
         let url = config.makeAuthorizationURL(pkce: pkce, state: "test-state")
 
@@ -30,7 +30,7 @@ struct OAuthConfigTests {
 
     @Test("scope is omitted from the URL when nil")
     func noScopeWhenNil() {
-        let config = OAuthConfig(clientID: "abc", redirectPort: 51818, scope: nil)
+        let config = OAuthConfig(clientID: "abc", clientSecret: "secret", redirectPort: 51818, scope: nil)
         let url = config.makeAuthorizationURL(pkce: PKCE(), state: "s")
         let components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
         #expect(!(components.queryItems ?? []).contains { $0.name == "scope" })

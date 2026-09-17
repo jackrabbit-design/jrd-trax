@@ -72,6 +72,7 @@ public final class LoopbackOAuthClient: OAuthClient, @unchecked Sendable {
             URLQueryItem(name: "grant_type", value: "authorization_code"),
             URLQueryItem(name: "code", value: code),
             URLQueryItem(name: "client_id", value: config.clientID),
+            URLQueryItem(name: "client_secret", value: config.clientSecret),
             URLQueryItem(name: "redirect_uri", value: config.redirectURI.absoluteString),
             URLQueryItem(name: "code_verifier", value: pkce.codeVerifier),
         ]

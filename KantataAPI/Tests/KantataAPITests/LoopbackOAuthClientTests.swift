@@ -22,7 +22,7 @@ final class FakeHTTPTransport: HTTPTransport, @unchecked Sendable {
 @Suite("Loopback OAuth client")
 struct LoopbackOAuthClientTests {
     private func makeConfig() -> OAuthConfig {
-        OAuthConfig(clientID: "client-1", redirectPort: 51818)
+        OAuthConfig(clientID: "client-1", clientSecret: "secret-1", redirectPort: 51818)
     }
 
     private func makeTokenResponse() -> Data {

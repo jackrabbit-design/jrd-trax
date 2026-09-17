@@ -90,7 +90,14 @@ public final class LoopbackListener: CallbackListening, @unchecked Sendable {
     }
 
     private func respond(on connection: NWConnection) {
-        let body = "<html><body>You can close this window and return to Trax.</body></html>"
+        let body = """
+        <html>
+        <head><meta charset="utf-8"></head>
+        <body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#1a1a1a;color:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+        <p style="font-size:1.1rem;text-align:center;">You can close this window and return to Trax.</p>
+        </body>
+        </html>
+        """
         let response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)"
         connection.send(content: response.data(using: .utf8), completion: .contentProcessed { _ in
             connection.cancel()
