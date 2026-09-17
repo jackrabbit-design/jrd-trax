@@ -13,6 +13,7 @@ public final class LoopbackListener: CallbackListening, @unchecked Sendable {
 
     public func start() async throws -> UInt16 {
         let params = NWParameters.tcp
+        params.requiredInterfaceType = .loopback
         let nwPort = requestedPort == 0 ? NWEndpoint.Port.any : NWEndpoint.Port(rawValue: requestedPort)!
         let listener = try NWListener(using: params, on: nwPort)
         self.listener = listener
@@ -21,9 +22,11 @@ public final class LoopbackListener: CallbackListening, @unchecked Sendable {
             listener.stateUpdateHandler = { [weak self] state in
                 switch state {
                 case .ready:
+                    listener.stateUpdateHandler = nil
                     let port = listener.port?.rawValue ?? self?.requestedPort ?? 0
                     continuation.resume(returning: port)
                 case .failed(let error):
+                    listener.stateUpdateHandler = nil
                     continuation.resume(throwing: error)
                 default:
                     break
@@ -62,20 +65,26 @@ public final class LoopbackListener: CallbackListening, @unchecked Sendable {
     private func receive(on connection: NWConnection) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { [weak self] data, _, _, error in
             guard let self else { return }
-            if let data, let request = String(data: data, encoding: .utf8) {
-                let params = Self.parseQueryParams(fromRequestLine: request)
+            if let data, let request = String(data: data, encoding: .utf8),
+               let parsed = Self.parseRequest(fromRequestLine: request) {
+                guard parsed.method == "GET" && parsed.path == "/callback" else {
+                    self.respondNotFound(on: connection)
+                    return
+                }
                 self.respond(on: connection)
                 self.lock.lock()
                 let cont = self.continuation
                 self.continuation = nil
                 self.lock.unlock()
-                cont?.resume(returning: params)
+                cont?.resume(returning: parsed.queryParams)
             } else if let error {
                 self.lock.lock()
                 let cont = self.continuation
                 self.continuation = nil
                 self.lock.unlock()
                 cont?.resume(throwing: error)
+            } else {
+                self.respondNotFound(on: connection)
             }
         }
     }
@@ -88,16 +97,31 @@ public final class LoopbackListener: CallbackListening, @unchecked Sendable {
         })
     }
 
-    private static func parseQueryParams(fromRequestLine request: String) -> [String: String] {
-        guard let firstLine = request.split(separator: "\r\n").first else { return [:] }
+    private func respondNotFound(on connection: NWConnection) {
+        let body = "<html><body>Not found.</body></html>"
+        let response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)"
+        connection.send(content: response.data(using: .utf8), completion: .contentProcessed { _ in
+            connection.cancel()
+        })
+    }
+
+    private struct ParsedRequest {
+        let method: String
+        let path: String
+        let queryParams: [String: String]
+    }
+
+    private static func parseRequest(fromRequestLine request: String) -> ParsedRequest? {
+        guard let firstLine = request.split(separator: "\r\n").first else { return nil }
         let parts = firstLine.split(separator: " ")
-        guard parts.count >= 2 else { return [:] }
-        let path = String(parts[1])
-        guard let components = URLComponents(string: "http://localhost\(path)") else { return [:] }
+        guard parts.count >= 2 else { return nil }
+        let method = String(parts[0])
+        let target = String(parts[1])
+        guard let components = URLComponents(string: "http://localhost\(target)") else { return nil }
         var result: [String: String] = [:]
         for item in components.queryItems ?? [] {
             result[item.name] = item.value ?? ""
         }
-        return result
+        return ParsedRequest(method: method, path: components.path, queryParams: result)
     }
 }
