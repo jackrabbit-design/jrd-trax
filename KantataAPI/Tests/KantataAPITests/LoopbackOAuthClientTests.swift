@@ -109,6 +109,8 @@ struct LoopbackOAuthClientTests {
         await #expect(throws: OAuthError.cancelled) {
             try await client.signIn()
         }
+
+        #expect(listener.stopCalled)
     }
 
     @Test("transport failure during exchange throws OAuthError.exchangeFailed")
@@ -136,5 +138,7 @@ struct LoopbackOAuthClientTests {
                 return
             }
         }
+
+        #expect(echoListener.stopCalled)
     }
 }

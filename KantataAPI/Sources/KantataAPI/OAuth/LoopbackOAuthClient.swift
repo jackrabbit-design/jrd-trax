@@ -25,6 +25,10 @@ public final class LoopbackOAuthClient: OAuthClient, @unchecked Sendable {
         let state = UUID().uuidString
         let listener = makeListener()
         lock.withLock { activeListener = listener }
+        defer {
+            listener.stop()
+            lock.withLock { activeListener = nil }
+        }
 
         _ = try await listener.start()
         let authURL = config.makeAuthorizationURL(pkce: pkce, state: state)
@@ -34,14 +38,8 @@ public final class LoopbackOAuthClient: OAuthClient, @unchecked Sendable {
         do {
             params = try await listener.waitForCallback()
         } catch is CancellationError {
-            lock.withLock { activeListener = nil }
             throw OAuthError.cancelled
-        } catch {
-            lock.withLock { activeListener = nil }
-            throw error
         }
-        listener.stop()
-        lock.withLock { activeListener = nil }
 
         if let errorParam = params["error"] {
             throw errorParam == "access_denied" ? OAuthError.accessDenied : OAuthError.exchangeFailed(errorParam)

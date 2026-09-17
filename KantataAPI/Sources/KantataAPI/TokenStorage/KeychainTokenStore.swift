@@ -21,6 +21,7 @@ public struct KeychainTokenStore: TokenStore {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
+            kSecUseDataProtectionKeychain as String: true,
         ]
     }
 
@@ -28,6 +29,7 @@ public struct KeychainTokenStore: TokenStore {
         let data = try JSONEncoder().encode(token)
         var addQuery = baseQuery
         addQuery[kSecValueData as String] = data
+        addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         let addStatus = secItemStore.add(addQuery)
         if addStatus == errSecDuplicateItem {
             let updateStatus = secItemStore.update(query: baseQuery, attributesToUpdate: [kSecValueData as String: data])
