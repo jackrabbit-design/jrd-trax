@@ -39,16 +39,31 @@ struct TodayView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            toolbar
-            if isStale {
-                staleBanner
+        ZStack {
+            VStack(spacing: 0) {
+                toolbar
+                if isStale {
+                    staleBanner
+                }
+                Divider()
+                RunningTimerBanner()
+                TaskListView(selectedDate: selectedDate)
+                Divider()
+                AddTimeRow(date: selectedDate)
             }
-            Divider()
-            RunningTimerBanner()
-            TaskListView(selectedDate: selectedDate)
-            Divider()
-            AddTimeRow(date: selectedDate)
+            .disabled(syncController?.isSyncing ?? false)
+
+            if syncController?.isSyncing == true {
+                syncingOverlay
+            }
+
+            if let syncController, case .conflicts(let conflicts) = syncController.phase {
+                conflictOverlay(conflicts: conflicts, controller: syncController)
+            }
+
+            if let syncController, case .failed(let message) = syncController.phase {
+                failureToast(message: message, controller: syncController)
+            }
         }
         .frame(minWidth: 640, minHeight: 480)
         .task {
@@ -57,6 +72,56 @@ struct TodayView: View {
             }
         }
         .onReceive(clockTicker) { now = $0 }
+    }
+
+    private var syncingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.3).ignoresSafeArea()
+            VStack(spacing: 12) {
+                ProgressView()
+                Text("Syncing with Kantata…")
+            }
+            .padding(24)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    private func conflictOverlay(conflicts: [SyncConflict], controller: SyncController) -> some View {
+        ZStack {
+            Color.black.opacity(0.3).ignoresSafeArea()
+            ConflictResolutionView(
+                conflicts: conflicts,
+                onApply: { resolutions in
+                    Task { await controller.resolveConflicts(resolutions) }
+                },
+                onCancel: {
+                    controller.cancelConflicts()
+                }
+            )
+        }
+    }
+
+    private func failureToast(message: String, controller: SyncController) -> some View {
+        VStack {
+            Spacer()
+            HStack {
+                Text(message)
+                    .foregroundStyle(.white)
+                Spacer()
+                Button("Retry") {
+                    Task { await controller.startSync() }
+                }
+                .foregroundStyle(.white)
+                Button("Dismiss") {
+                    controller.dismissFailure()
+                }
+                .foregroundStyle(.white)
+            }
+            .padding()
+            .background(Color.red)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .padding()
+        }
     }
 
     private var toolbar: some View {
