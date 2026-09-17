@@ -21,3 +21,10 @@ targets:
         PRODUCT_NAME: Trax
         GENERATE_INFOPLIST_FILE: YES
         ENABLE_HARDENED_RUNTIME: YES
+schemes:
+  Trax:
+    build:
+      targets:
+        Trax: all
+    archive:
+      config: Release
