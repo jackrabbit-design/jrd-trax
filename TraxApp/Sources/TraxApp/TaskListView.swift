@@ -24,6 +24,20 @@ struct TaskListView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
+                LazyHStack(spacing: 12) {
+                    Text("Project/Task")
+                        .frame(width: 205, alignment: .leading)
+                    Text("Due")
+                        .frame(width: 70, alignment: .leading)
+                    Text("Scheduled")
+                        .frame(width: 70, alignment: .leading)
+                    Text("Logged")
+                        .frame(width: 70, alignment: .leading)
+                    Text("Status")
+                        .frame(width: 140, alignment: .leading)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
                 ForEach(groupedTasks, id: \.project.id) { group in
                     ProjectHeaderRow(
                         project: group.project,

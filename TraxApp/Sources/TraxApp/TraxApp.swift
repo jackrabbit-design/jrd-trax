@@ -25,7 +25,10 @@ public struct TraxAppMain: App {
         WindowGroup {
             AuthGateView(
                 oauthClient: LoopbackOAuthClient(
-                    config: OAuthConfig(clientID: "REPLACE_WITH_REAL_CLIENT_ID"),
+                    config: OAuthConfig(
+                        clientID: "ffc0ff2474480c66244a3541ee0bb465aa3d1e73699ad877c710840f91484a53",
+                        clientSecret: "REPLACE_WITH_REAL_CLIENT_SECRET"
+                    ),
                     transport: URLSessionHTTPTransport(),
                     makeListener: { LoopbackListener(port: 51818) },
                     openBrowser: { NSWorkspace.shared.open($0) }

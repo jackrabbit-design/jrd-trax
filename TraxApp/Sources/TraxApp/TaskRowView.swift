@@ -48,7 +48,7 @@ struct TaskRowView: View {
                     .frame(width: 70, alignment: .leading)
 
                 scheduledLabel
-                    .frame(width: 120, alignment: .leading)
+                    .frame(width: 70, alignment: .leading)
 
                 Text(DurationFormatting.short(loggedMinutes))
                     .font(.caption)
@@ -100,7 +100,7 @@ struct TaskRowView: View {
     }
 
     private var dueLabel: String {
-        guard let dueDate = task.dueDate else { return "No due date" }
+        guard let dueDate = task.dueDate else { return "—" }
         return DueDateFormatting.short(dueDate, relativeTo: .now)
     }
 
@@ -110,7 +110,7 @@ struct TaskRowView: View {
                 Text(DurationFormatting.short(scheduledMinutes))
                     .font(.caption)
             } else {
-                Text("No time scheduled")
+                Text("—")
                     .font(.caption)
                     .italic()
                     .foregroundStyle(.secondary)
