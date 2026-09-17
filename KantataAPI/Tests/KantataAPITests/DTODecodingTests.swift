@@ -20,11 +20,12 @@ struct DTODecodingTests {
         #expect(dto.name == "In Progress")
     }
 
-    @Test("StatusSetDTO decodes with nested status ids")
+    @Test("StatusSetDTO decodes with nested status ids and a workspace id")
     func statusSet() throws {
-        let json = #"{"id": "set1", "name": "Default", "status_ids": ["s1", "s2"]}"#.data(using: .utf8)!
+        let json = #"{"id": "set1", "name": "Default", "workspace_id": "w1", "status_ids": ["s1", "s2"]}"#.data(using: .utf8)!
         let dto = try JSONDecoder().decode(StatusSetDTO.self, from: json)
         #expect(dto.id == "set1")
+        #expect(dto.workspaceId == "w1")
         #expect(dto.statusIds == ["s1", "s2"])
     }
 
@@ -75,5 +76,13 @@ struct DTODecodingTests {
         let dto = try JSONDecoder().decode(UserDTO.self, from: json)
         #expect(dto.fullName == "Chris K")
         #expect(dto.email == "ck@jumpingjackrabbit.com")
+    }
+
+    @Test("StoryStateChangeDTO decodes")
+    func storyStateChange() throws {
+        let json = #"{"id": "c1", "story_id": "st1", "status_id": "s2"}"#.data(using: .utf8)!
+        let dto = try JSONDecoder().decode(StoryStateChangeDTO.self, from: json)
+        #expect(dto.storyId == "st1")
+        #expect(dto.statusId == "s2")
     }
 }

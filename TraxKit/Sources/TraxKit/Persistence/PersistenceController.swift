@@ -10,6 +10,7 @@ public enum PersistenceController {
             Allocation.self,
             TimeEntry.self,
             RunningTimer.self,
+            SyncState.self,
         ])
     }
 

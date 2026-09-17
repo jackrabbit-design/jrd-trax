@@ -1,8 +1,18 @@
 import SwiftUI
+import SwiftData
+import Combine
 import TraxKit
+import KantataAPI
 
 struct TodayView: View {
+    let apiClient: KantataAPIClient
+
+    @Environment(\.modelContext) private var modelContext
+    @Query private var syncStates: [SyncState]
+    @State private var syncController: SyncController?
     @State private var selectedDate: Date = Calendar.current.startOfDay(for: .now)
+    @State private var now: Date = .now
+    private let clockTicker = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
     private var dateLabel: String {
         selectedDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
@@ -23,16 +33,117 @@ struct TodayView: View {
         }
     }
 
+    private var lastSyncedAt: Date? {
+        syncStates.first?.lastSyncedAt
+    }
+
+    private var lastSyncedLabel: String {
+        guard let lastSyncedAt else { return "Never synced" }
+        return "Last synced \(lastSyncedAt.formatted(.relative(presentation: .named)))"
+    }
+
+    private var isStale: Bool {
+        guard let lastSyncedAt else { return true }
+        return now.timeIntervalSince(lastSyncedAt) > 10 * 3600
+    }
+
+    private var staleBannerText: String {
+        guard let lastSyncedAt else { return "You haven't synced yet. Your schedule may be out of date." }
+        let hours = Int(now.timeIntervalSince(lastSyncedAt) / 3600)
+        return "\(hours) hours since last sync. Your schedule may be out of date."
+    }
+
+    private var isBlockingUI: Bool {
+        guard let syncController else { return false }
+        if syncController.isSyncing { return true }
+        if case .conflicts = syncController.phase { return true }
+        return false
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            toolbar
-            Divider()
-            RunningTimerBanner()
-            TaskListView(selectedDate: selectedDate)
-            Divider()
-            AddTimeRow(date: selectedDate)
+        ZStack {
+            VStack(spacing: 0) {
+                toolbar
+                if isStale {
+                    staleBanner
+                }
+                Divider()
+                RunningTimerBanner()
+                TaskListView(selectedDate: selectedDate)
+                Divider()
+                AddTimeRow(date: selectedDate)
+            }
+            .disabled(isBlockingUI)
+
+            if syncController?.isSyncing == true {
+                syncingOverlay
+            }
+
+            if let syncController, case .conflicts(let conflicts) = syncController.phase {
+                conflictOverlay(conflicts: conflicts, controller: syncController)
+            }
+
+            if let syncController, case .failed(let message) = syncController.phase {
+                failureToast(message: message, controller: syncController)
+            }
         }
         .frame(minWidth: 640, minHeight: 480)
+        .task {
+            if syncController == nil {
+                syncController = SyncController(engine: SyncEngine(modelContext: modelContext, apiClient: apiClient))
+            }
+        }
+        .onReceive(clockTicker) { now = $0 }
+    }
+
+    private var syncingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.3).ignoresSafeArea()
+            VStack(spacing: 12) {
+                ProgressView()
+                Text("Syncing with Kantata…")
+            }
+            .padding(24)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    private func conflictOverlay(conflicts: [SyncConflict], controller: SyncController) -> some View {
+        ZStack {
+            Color.black.opacity(0.3).ignoresSafeArea()
+            ConflictResolutionView(
+                conflicts: conflicts,
+                onApply: { resolutions in
+                    Task { await controller.resolveConflicts(resolutions) }
+                },
+                onCancel: {
+                    controller.cancelConflicts()
+                }
+            )
+        }
+    }
+
+    private func failureToast(message: String, controller: SyncController) -> some View {
+        VStack {
+            Spacer()
+            HStack {
+                Text(message)
+                    .foregroundStyle(.white)
+                Spacer()
+                Button("Retry") {
+                    Task { await controller.startSync() }
+                }
+                .foregroundStyle(.white)
+                Button("Dismiss") {
+                    controller.dismissFailure()
+                }
+                .foregroundStyle(.white)
+            }
+            .padding()
+            .background(Color.red)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .padding()
+        }
     }
 
     private var toolbar: some View {
@@ -59,23 +170,38 @@ struct TodayView: View {
                     }
                 }
                 Spacer()
-                Text("Last synced —")
+                Text(lastSyncedLabel)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Button {
-                    // Sync is wired up in a future sub-project.
+                    Task { await syncController?.startSync() }
                 } label: {
                     Image(systemName: "arrow.triangle.2.circlepath")
                 }
-                .disabled(true)
+                .disabled(syncController == nil)
             }
             .padding(.horizontal)
             .padding(.top, 12)
             .padding(.bottom, 12)
         }
     }
+
+    private var staleBanner: some View {
+        HStack {
+            Text(staleBannerText)
+                .font(.caption)
+            Spacer()
+            Button("Sync now") {
+                Task { await syncController?.startSync() }
+            }
+            .font(.caption)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 6)
+        .background(Color.orange.opacity(0.2))
+    }
 }
 
 #Preview {
-    TodayView()
+    TodayView(apiClient: KantataAPIClient(transport: URLSessionHTTPTransport(), tokenProvider: { nil }))
 }

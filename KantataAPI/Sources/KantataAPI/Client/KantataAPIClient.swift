@@ -27,12 +27,19 @@ public struct KantataAPIClient: Sendable {
         try await get("assignments")
     }
 
-    public func fetchDailyScheduledHours() async throws -> [DailyScheduledHourDTO] {
-        try await get("story_allocation_days")
+    public func fetchDailyScheduledHours(from: String, to: String) async throws -> [DailyScheduledHourDTO] {
+        try await get("story_allocation_days", queryItems: [
+            URLQueryItem(name: "from", value: from),
+            URLQueryItem(name: "to", value: to),
+        ])
     }
 
     public func fetchStories() async throws -> [StoryDTO] {
         try await get("stories")
+    }
+
+    public func fetchWorkspaces() async throws -> [WorkspaceDTO] {
+        try await get("workspaces")
     }
 
     public func fetchCurrentUser() async throws -> UserDTO {
@@ -43,8 +50,16 @@ public struct KantataAPIClient: Sendable {
         try await post("time_entries", body: requestBody)
     }
 
-    private func get<T: Decodable>(_ path: String) async throws -> T {
-        var request = URLRequest(url: baseURL.appendingPathComponent(path))
+    public func createStoryStateChange(_ requestBody: StoryStateChangeCreateRequest) async throws -> StoryStateChangeDTO {
+        try await post("story_state_changes", body: requestBody)
+    }
+
+    private func get<T: Decodable>(_ path: String, queryItems: [URLQueryItem] = []) async throws -> T {
+        var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
+        if !queryItems.isEmpty {
+            components.queryItems = queryItems
+        }
+        var request = URLRequest(url: components.url!)
         request.httpMethod = "GET"
         applyAuth(&request)
         return try await send(request)

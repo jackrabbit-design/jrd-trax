@@ -136,4 +136,32 @@ struct ModelPersistenceTests {
         #expect(fetched.first?.taskId == "t1")
         #expect(fetched.first?.startedAt == startedAt)
     }
+
+    @Test("TraxTask.syncedStatusId round-trips")
+    func taskSyncedStatusIdRoundTrip() throws {
+        let context = try makeContext()
+        let task = TraxTask(
+            id: "t3", projectId: "p1", name: "Synced task",
+            priority: .normal, statusId: "s1", storyId: "st3", syncedStatusId: "s1"
+        )
+        context.insert(task)
+        try context.save()
+
+        let fetched = try context.fetch(FetchDescriptor<TraxTask>(predicate: #Predicate { $0.id == "t3" }))
+        #expect(fetched.first?.syncedStatusId == "s1")
+    }
+
+    @Test("SyncState round-trips")
+    func syncStateRoundTrip() throws {
+        let context = try makeContext()
+        let syncedAt = Date(timeIntervalSince1970: 2000)
+        let state = SyncState(lastSyncedAt: syncedAt)
+        context.insert(state)
+        try context.save()
+
+        let fetched = try context.fetch(FetchDescriptor<SyncState>())
+        #expect(fetched.count == 1)
+        #expect(fetched.first?.id == "current")
+        #expect(fetched.first?.lastSyncedAt == syncedAt)
+    }
 }

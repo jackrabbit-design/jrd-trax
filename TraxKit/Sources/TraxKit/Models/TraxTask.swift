@@ -10,6 +10,11 @@ public final class TraxTask {
     public var dueDate: Date?
     public var statusId: String?
     public var storyId: String
+    /// The last-known-server value of `statusId` as of the most recent
+    /// successful sync — the baseline used to detect whether `statusId`
+    /// changed locally, remotely, or both since then. `nil` means never
+    /// synced (no baseline, so no conflict check is possible yet).
+    public var syncedStatusId: String?
 
     public init(
         id: String,
@@ -18,7 +23,8 @@ public final class TraxTask {
         priority: Priority,
         dueDate: Date? = nil,
         statusId: String? = nil,
-        storyId: String
+        storyId: String,
+        syncedStatusId: String? = nil
     ) {
         self.id = id
         self.projectId = projectId
@@ -27,5 +33,6 @@ public final class TraxTask {
         self.dueDate = dueDate
         self.statusId = statusId
         self.storyId = storyId
+        self.syncedStatusId = syncedStatusId
     }
 }

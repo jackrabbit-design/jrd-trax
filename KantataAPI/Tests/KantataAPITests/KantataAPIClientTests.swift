@@ -86,4 +86,28 @@ struct KantataAPIClientTests {
             try await client.fetchTaskStatuses()
         }
     }
+
+    @Test("fetchDailyScheduledHours sends a from/to date range query")
+    func fetchDailyScheduledHoursDateRange() async throws {
+        let transport = StubHTTPTransport()
+        transport.responseData = "[]".data(using: .utf8)!
+        let client = KantataAPIClient(transport: transport, tokenProvider: { "tok" })
+
+        _ = try await client.fetchDailyScheduledHours(from: "2026-09-01", to: "2026-09-30")
+
+        let query = transport.lastRequest?.url?.query ?? ""
+        #expect(query.contains("from=2026-09-01"))
+        #expect(query.contains("to=2026-09-30"))
+    }
+
+    @Test("createStoryStateChange posts the request body and decodes the response")
+    func createStoryStateChange() async throws {
+        let transport = StubHTTPTransport()
+        transport.responseData = #"{"id": "c1", "story_id": "st1", "status_id": "s2"}"#.data(using: .utf8)!
+        let client = KantataAPIClient(transport: transport, tokenProvider: { "tok" })
+
+        let result = try await client.createStoryStateChange(StoryStateChangeCreateRequest(storyId: "st1", statusId: "s2"))
+        #expect(result.statusId == "s2")
+        #expect(transport.lastRequest?.httpMethod == "POST")
+    }
 }
