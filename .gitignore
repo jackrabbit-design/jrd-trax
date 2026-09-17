@@ -4,3 +4,4 @@
 .swiftpm/
 DerivedData/
 .DS_Store
+TraxApp/Sources/TraxApp/Secrets.swift
