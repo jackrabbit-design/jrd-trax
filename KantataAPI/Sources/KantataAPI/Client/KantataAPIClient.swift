@@ -38,6 +38,10 @@ public struct KantataAPIClient: Sendable {
         try await get("stories")
     }
 
+    public func fetchWorkspaces() async throws -> [WorkspaceDTO] {
+        try await get("workspaces")
+    }
+
     public func fetchCurrentUser() async throws -> UserDTO {
         try await get("me")
     }
