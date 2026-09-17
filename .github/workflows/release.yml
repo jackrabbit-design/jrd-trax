@@ -23,6 +23,10 @@ jobs:
         env:
           KANTATA_CLIENT_SECRET: ${{ secrets.KANTATA_CLIENT_SECRET }}
         run: |
+          if [ -z "$KANTATA_CLIENT_SECRET" ]; then
+            echo "::error::KANTATA_CLIENT_SECRET repository secret is not set"
+            exit 1
+          fi
           printf 'enum Secrets {\n    static let kantataClientSecret = "%s"\n}\n' "$KANTATA_CLIENT_SECRET" > TraxApp/Sources/TraxApp/Secrets.swift
 
       - name: Install XcodeGen
@@ -38,14 +42,14 @@ jobs:
             -scheme Trax \
             -configuration Release \
             -archivePath build/Trax.xcarchive \
-            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=YES
 
       - name: Zip the app
         run: |
-          cd build/Trax.xcarchive/Products/Applications
-          zip -r ../../../../Trax.zip Trax.app
+          ditto -c -k --keepParent --sequesterRsrc \
+            build/Trax.xcarchive/Products/Applications/Trax.app Trax.zip
 
       - name: Determine tag
         id: tag
@@ -53,13 +57,17 @@ jobs:
           TAG_INPUT: ${{ inputs.tag }}
         run: |
           if [ -n "$TAG_INPUT" ]; then
-            echo "value=$TAG_INPUT" >> "$GITHUB_OUTPUT"
+            {
+              echo "value<<TAG_EOF"
+              echo "$TAG_INPUT"
+              echo "TAG_EOF"
+            } >> "$GITHUB_OUTPUT"
           else
             echo "value=build-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Publish release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191  # v2.2.1
         with:
           tag_name: ${{ steps.tag.outputs.value }}
           name: Trax ${{ steps.tag.outputs.value }}

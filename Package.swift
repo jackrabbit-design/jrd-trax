@@ -13,7 +13,7 @@ let package = Package(
         .package(path: "KantataAPI"),
     ],
     targets: [
-        .target(name: "TraxApp", dependencies: ["TraxKit", "KantataAPI"], path: "TraxApp/Sources/TraxApp"),
+        .target(name: "TraxApp", dependencies: ["TraxKit", "KantataAPI"], path: "TraxApp/Sources/TraxApp", exclude: ["Secrets.swift.example"]),
         .executableTarget(name: "TraxAppExecutable", dependencies: ["TraxApp"], path: "TraxApp/Sources/TraxAppExecutable"),
         .testTarget(name: "TraxAppTests", dependencies: ["TraxApp"], path: "TraxApp/Tests/TraxAppTests"),
     ]
