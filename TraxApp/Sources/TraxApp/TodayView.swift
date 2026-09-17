@@ -38,6 +38,13 @@ struct TodayView: View {
         return "\(hours) hours since last sync. Your schedule may be out of date."
     }
 
+    private var isBlockingUI: Bool {
+        guard let syncController else { return false }
+        if syncController.isSyncing { return true }
+        if case .conflicts = syncController.phase { return true }
+        return false
+    }
+
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
@@ -51,7 +58,7 @@ struct TodayView: View {
                 Divider()
                 AddTimeRow(date: selectedDate)
             }
-            .disabled(syncController?.isSyncing ?? false)
+            .disabled(isBlockingUI)
 
             if syncController?.isSyncing == true {
                 syncingOverlay
